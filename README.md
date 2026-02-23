@@ -17,6 +17,38 @@ FlowTask is a local-first task management application that keeps all data on-dev
 
 ---
 
+## How It Was Built
+
+This application was built as an AI-assisted full-stack development project, demonstrating modern software engineering practices combined with AI-powered development workflows. The entire application — from specification to implementation to testing — was developed using Claude Code as an AI pair programmer.
+
+### Development Process
+
+1. **Specification and Architecture Design** — Started with a comprehensive technical specification (SPEC.md) that defined every aspect: data models, API contracts, component architecture, database schema, keyboard shortcuts, and quality standards. The spec served as the single source of truth throughout development.
+
+2. **Monorepo Scaffolding** — Set up the pnpm workspace with three packages (shared, backend, frontend) and a base TypeScript configuration enforcing strict mode across all packages. Established the shared-first pattern where types and validation schemas are defined once and consumed by both frontend and backend.
+
+3. **Database and Backend API** — Implemented the SQLite database schema with 8 tables using Drizzle ORM, then built the Hono REST API with 7 route modules. Each route follows a consistent pattern: Zod validation → business logic → JSON response. Implemented batched relation loading to avoid N+1 query problems.
+
+4. **Frontend Application** — Built the React 19 SPA with Zustand state management using optimistic updates for responsive UX. Implemented three views (List, Kanban with @dnd-kit drag-and-drop, Calendar), a command palette with inline syntax parsing (Quick Capture), and productivity tools (Pomodoro timer, time tracking).
+
+5. **End-to-End Type Safety** — Zod schemas in the shared package serve as the contract between frontend and backend. The API client is fully typed, stores use shared types, and runtime validation catches any mismatches at the API boundary.
+
+6. **Comprehensive Testing** — Built a 292+ test suite across three layers: backend unit tests with real in-memory SQLite (no mocks), frontend tests with React Testing Library and MSW, and 71 Playwright E2E tests covering every user flow. Added axe-core accessibility tests and visual regression snapshots.
+
+7. **Quality Assurance** — Zero TypeScript errors across all 4 tsconfigs. Backend at 85% line coverage. Mutation testing on critical routes. Every bug fix and feature addition was followed by full browser verification using Playwright in headed mode.
+
+8. **Developer Automation** — Created 17 Claude Code automation skills (slash commands) that automate common workflows: adding endpoints, database migrations, test coverage analysis, accessibility audits, performance profiling, and more. These skills use multi-agent teams with DAG task dependencies to enforce correct execution order.
+
+---
+
+## What Makes This Different
+
+- **Local-first architecture** — All data stays on your machine in SQLite. No cloud dependency, no account required, instant performance.
+- **Production-grade engineering** — This is not a tutorial project. It has proper error handling, optimistic updates with rollback, N+1 query prevention, cascade deletions, WAL mode for concurrent access, and code-split lazy loading.
+- **AI-augmented development workflow** — 17 automation skills that use multi-agent teams to handle everything from endpoint creation to accessibility audits. The development process itself is part of the engineering.
+
+---
+
 ## Key Features
 
 **Task Management**
@@ -34,7 +66,7 @@ FlowTask is a local-first task management application that keeps all data on-dev
 - Time tracking — manual entry and automatic session recording
 - Focus sessions linked to tasks
 
-**Data & UX**
+**Data and UX**
 - Local-first SQLite storage — no account, no sync service
 - Import and export support
 - Optimistic UI updates for a snappy experience
