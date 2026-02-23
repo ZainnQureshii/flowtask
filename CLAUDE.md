@@ -64,7 +64,33 @@ node test-views.js                # View/drag-drop tests
 
 ## Environment
 
-No `.env` files required. Backend port (3001) and DB path (`packages/backend/data/flowtask.db`) are hardcoded defaults.
+No `.env` files required. Key env vars in production:
+- `PORT` — defaults to 3001 (dev), set to 8080 in production (Fly.io)
+- `NODE_ENV` — when `production`, backend serves frontend static files and uses `/data/flowtask.db` (Fly volume)
+- Dev DB path: `packages/backend/data/flowtask.db`
+
+## Deployment
+
+Deployed on Fly.io: https://flowtask-cool-leaf-7076.fly.dev/
+
+```bash
+fly deploy                              # Build Docker image + deploy
+fly logs                                # Tail production logs
+fly ssh console                         # SSH into the running machine
+fly status                              # Check machine health
+fly volumes list                        # Inspect persistent SQLite volume
+```
+
+**Architecture in production**: The Dockerfile uses a 3-stage build:
+1. Frontend built with Vite → static files in `packages/frontend/dist/`
+2. Backend bundled with esbuild → single `dist/server.mjs` (better-sqlite3 externalized as native module)
+3. Production image: backend serves both API routes and frontend static files on port 8080
+
+In dev, Vite proxies `/api/*` to the backend. In production, the backend serves the frontend SPA directly with a fallback to `index.html` for client-side routing.
+
+**Persistent storage**: SQLite DB lives on a Fly volume (`flowtask_data` mounted at `/data`). First-time setup requires: `fly volumes create flowtask_data --region cdg --size 1`
+
+**Auto-deploy**: Fly.io GitHub integration auto-deploys on push to main.
 
 ## Key Patterns
 
