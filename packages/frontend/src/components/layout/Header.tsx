@@ -2,14 +2,13 @@ import { useState, useCallback, useRef } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { useTimerStore } from '@/stores/timerStore';
 import { useTaskStore } from '@/stores/taskStore';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sun, Moon, Monitor, Plus, Search, Timer } from 'lucide-react';
+import { Sun, Moon, Monitor, Plus, Search, Timer, Menu } from 'lucide-react';
 import { formatTimer } from '@/lib/utils';
 import type { Theme } from '@flowtask/shared';
 
 export function Header() {
-  const { theme, setTheme, openTaskForm, toggleQuickCapture } = useUIStore();
+  const { theme, setTheme, openTaskForm, toggleQuickCapture, openMobileDrawer } = useUIStore();
   const { isTimeTrackingRunning, timeTrackingElapsed, activeTimeEntry } = useTimerStore();
   const { tasks, setFilters } = useTaskStore();
   const [searchValue, setSearchValue] = useState('');
@@ -28,19 +27,44 @@ export function Header() {
 
   const activeTask = activeTimeEntry ? tasks.find((t) => t.id === activeTimeEntry.taskId) : null;
 
-  const themeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
-  const ThemeIcon = themeIcon;
-
   function cycleTheme() {
     const cycle: Record<Theme, Theme> = { light: 'dark', dark: 'system', system: 'light' };
     setTheme(cycle[theme]);
   }
 
+  const ThemeIcon = theme === 'dark' ? Moon : theme === 'light' ? Sun : Monitor;
+
   return (
-    <header className="flex items-center gap-3 border-b px-4 py-2 bg-background">
+    <header
+      className="flex items-center gap-3 px-4 shrink-0"
+      style={{
+        height: 'var(--header-height, 56px)',
+        borderBottom: '1px solid var(--color-border-subtle, #EBEBF5)',
+        background: 'var(--color-surface, #FFFFFF)',
+      }}
+    >
+      {/* Hamburger — tablet & mobile only */}
+      <button
+        onClick={openMobileDrawer}
+        aria-label="Open navigation"
+        className="lg:hidden w-9 h-9 flex items-center justify-center rounded-md shrink-0 transition-colors focus-visible:outline-none"
+        style={{ color: 'var(--color-text-tertiary)' }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-surface-hover)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+        }}
+      >
+        <Menu className="w-5 h-5" />
+      </button>
+
       {/* Search */}
       <div className="relative flex-1 max-w-md">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+          style={{ color: 'var(--color-text-tertiary)' }}
+        />
         <Input
           placeholder="Search tasks... (Ctrl+K)"
           value={searchValue}
@@ -49,27 +73,70 @@ export function Header() {
             if (!searchValue) toggleQuickCapture();
           }}
           className="pl-9 h-8"
+          style={{
+            background: 'var(--color-surface-raised, #F5F5F7)',
+            border: '1px solid var(--color-border, #E2E2EC)',
+            borderRadius: 'var(--radius-base, 6px)',
+            fontSize: '13px',
+            color: 'var(--color-text-primary)',
+          }}
         />
       </div>
 
       {/* Running timer indicator */}
       {isTimeTrackingRunning && activeTask && (
-        <div className="flex items-center gap-2 rounded-md bg-primary/10 px-3 py-1 text-sm">
-          <Timer className="h-3.5 w-3.5 text-primary animate-pulse" />
-          <span className="truncate max-w-[120px] text-xs">{activeTask.title}</span>
-          <span className="font-mono text-xs font-medium">{formatTimer(timeTrackingElapsed)}</span>
+        <div
+          className="hidden sm:flex items-center gap-2 rounded-md px-3 py-1.5"
+          style={{
+            background: 'var(--color-primary-muted, #E8E4F8)',
+            color: 'var(--color-primary, #6D56D4)',
+          }}
+        >
+          <Timer className="w-3.5 h-3.5 animate-pulse shrink-0" />
+          <span className="truncate max-w-[100px] text-xs font-medium">{activeTask.title}</span>
+          <span className="font-mono text-xs font-semibold">{formatTimer(timeTrackingElapsed)}</span>
         </div>
       )}
 
-      {/* Actions */}
-      <Button variant="ghost" size="icon" onClick={cycleTheme} aria-label={`Theme: ${theme}`}>
-        <ThemeIcon className="h-4 w-4" />
-      </Button>
+      {/* Theme toggle */}
+      <button
+        onClick={cycleTheme}
+        aria-label={`Theme: ${theme}`}
+        className="w-9 h-9 flex items-center justify-center rounded-md transition-colors shrink-0 focus-visible:outline-none"
+        style={{ color: 'var(--color-text-tertiary)' }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-surface-hover)';
+          (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-secondary)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+          (e.currentTarget as HTMLButtonElement).style.color = 'var(--color-text-tertiary)';
+        }}
+      >
+        <ThemeIcon className="w-4 h-4" />
+      </button>
 
-      <Button size="sm" onClick={() => openTaskForm()} className="gap-1">
-        <Plus className="h-4 w-4" />
+      {/* New Task */}
+      <button
+        onClick={() => openTaskForm()}
+        className="flex items-center gap-1.5 h-8 px-3 rounded-md text-sm font-medium transition-colors shrink-0 focus-visible:outline-none"
+        style={{
+          background: 'var(--color-primary, #6D56D4)',
+          color: 'var(--color-primary-foreground, #FFFFFF)',
+          borderRadius: 'var(--radius-base, 6px)',
+          fontSize: '13px',
+          fontWeight: 500,
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-primary-hover, #5944BC)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-primary, #6D56D4)';
+        }}
+      >
+        <Plus className="w-4 h-4 shrink-0" />
         <span className="hidden sm:inline">New Task</span>
-      </Button>
+      </button>
     </header>
   );
 }

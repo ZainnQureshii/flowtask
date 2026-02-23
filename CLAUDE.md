@@ -12,6 +12,7 @@ pnpm install              # Install all workspace dependencies
 pnpm dev                  # Start frontend (5173) + backend (3001) in parallel
 pnpm dev:frontend         # Frontend only
 pnpm dev:backend          # Backend only
+pnpm --filter frontend run preview # Vite preview of production build
 pnpm build                # Build all packages
 pnpm typecheck            # TypeScript check across all packages (runs tsc --noEmit in each package)
 
@@ -28,6 +29,7 @@ pnpm --filter frontend run test:watch   # Frontend tests in watch mode
 pnpm --filter frontend run test:coverage # Frontend coverage report
 pnpm test:e2e                           # E2E Playwright tests (~71 tests, workers:1, Chromium only)
 pnpm test:mutation                      # Stryker mutation testing
+pnpm test:mutation:report               # Generate HTML mutation testing report
 
 # Run a single test file
 pnpm --filter backend run test -- src/__tests__/routes/tasks.test.ts
@@ -49,7 +51,7 @@ node test-views.js                # View/drag-drop tests
 **pnpm monorepo** with three packages under `packages/`:
 
 - **`shared/`** (`@flowtask/shared`) — TypeScript types (`types.ts`), Zod validation schemas (`schemas.ts`), constants/enums (`constants.ts`). No build step — consumed via direct TS imports. This is the single source of truth for types and validation used by both frontend and backend.
-- **`frontend/`** — React 19 SPA built with Vite 6. Zustand for state, Tailwind 4 + shadcn/ui for styling, @dnd-kit for drag-and-drop, Framer Motion for animations. Uses `@` path alias mapped to `src/`.
+- **`frontend/`** — React 19 SPA built with Vite 6. Zustand for state, Tailwind 4 + shadcn/ui for styling, @dnd-kit for drag-and-drop, Framer Motion + GSAP for animations. Uses `@` path alias mapped to `src/`.
 - **`backend/`** — Hono REST API on port 3001. SQLite via better-sqlite3 + Drizzle ORM. DB file at `packages/backend/data/flowtask.db`. Migrations run automatically on startup.
 
 **Data flow:** Frontend calls `/api/*` → Vite dev proxy forwards to `localhost:3001` → Hono routes validate with Zod → query SQLite via Drizzle → respond with `{ data: T }`.
@@ -92,6 +94,34 @@ In dev, Vite proxies `/api/*` to the backend. In production, the backend serves 
 
 **Auto-deploy**: Fly.io GitHub integration auto-deploys on push to main.
 
+## Design System
+
+Defined entirely in `packages/frontend/src/index.css` via Tailwind 4 `@theme` — no separate config file.
+
+**Brand:** FlowTask Violet (`--color-violet-*`, primary is `#6D56D4` light / `#9E8AF5` dark).
+
+**Fonts:** Inter (`--font-sans`, body) + Manrope (`--font-display`, headings). Both loaded via Google Fonts. JetBrains Mono for code.
+
+**Semantic tokens** (use these, never raw hex):
+- Backgrounds: `--color-bg`, `--color-surface`, `--color-surface-raised`, `--color-surface-overlay`, `--color-sidebar`
+- Text: `--color-text-primary/secondary/tertiary/disabled`
+- Borders: `--color-border`, `--color-border-subtle`, `--color-border-strong`, `--color-border-focus`
+- Priority: `--color-p1` (Urgent/Red) through `--color-p4` (Low/Gray) + `*-muted` variants
+
+Dark mode overrides only semantic tokens — aliases cascade automatically. Apply with `.dark` class on `<html>`.
+
+**Breakpoints:** mobile `<768px`, tablet `768px+`, desktop `1024px+`, XL `1536px+`. Layout vars: `--sidebar-width: 240px`, `--detail-panel-width: 340px`, `--header-height: 56px`, `--bottom-nav-height: 64px`.
+
+**Animation framework** — two libraries, distinct responsibilities. Never mix both on the same element:
+- **Framer Motion** (`lib/motion.ts`): `AnimatePresence`, layout animations, gesture-driven. Use presets: `fadeIn`, `slideInRight`, `slideUpModal`, `slideUpSheet`, `taskEnter`, `sidebarCollapse`, `noMotion` (reduced-motion fallback).
+- **GSAP** (`lib/gsap.ts`): multi-step timelines, `ScrollTrigger`, `Flip`. Registered once at module level with global `power2.out` / `0.2s` defaults. Automatically time-scales to 1000x when `prefers-reduced-motion` is set.
+
+**Priority colors** (`lib/priority.ts`): use `getPriorityColor(priority)` or `PRIORITY_COLORS[priority]` — returns `color`, `muted`, `label`, and Tailwind arbitrary-value classes (`twBorder`, `twText`, `twBg`). Never hardcode priority colors.
+
+**Toast** (`lib/toast.ts`): call `toast.success/error/warning/info(message)` anywhere. Backed by `useToastStore` (Zustand). Rendered by `<Toaster />` in `AppShell`. Errors auto-dismiss after 6s, warnings after 8s, others after 4s.
+
+**Layout components** (`components/layout/`): `AppShell` composes `Sidebar` + `Header` + `MobileNav`. `MobileNav` is a bottom sheet tab bar rendered only on `<768px` (hidden on desktop via CSS).
+
 ## Key Patterns
 
 **Backend routes** (`packages/backend/src/routes/`): Zod schema → `parseBody(c, schema)` middleware → Drizzle query → `c.json({ data: result })`. All task responses include hydrated relations (tags, subtasks, pomodoro sessions, time entries) via `batchLoadRelations()` to avoid N+1 queries.
@@ -123,7 +153,7 @@ Recurring task logic: when a task with `recurringConfig` is marked "done", the P
 
 ## Custom Skills (`.claude/commands/`)
 
-17 slash commands available. All spawn agents — orchestrator context never runs code or reads files directly.
+19 slash commands available. All spawn agents — orchestrator context never runs code or reads files directly.
 
 | Command | What it does |
 |---|---|
@@ -134,6 +164,7 @@ Recurring task logic: when a task with `recurringConfig` is marked "done", the P
 | `/typecheck` | Run all 4 tsc checks; spawn fix agent only if errors found |
 | `/review-code [ref]` | Code review against uncommitted changes (or a git ref); checks bugs, security, types, error handling, test coverage |
 | `/verify-app` | 4-agent browser test covering task CRUD, views/drag-drop, productivity features (Pomodoro, time tracking, subtasks), and settings/filters |
+| `/verify-deployed` | 2-agent smoke test against live Fly.io production URL — checks HTTP status, API endpoints, frontend render, and no JS errors |
 | `/resume` | Saves current session state to `memory/current-work.md` for seamless handoff to next session |
 | `/cleanup-agents` | Kills dead tmux panes; reports stale team/task directories |
 | `/check-patterns` | Analyzes recent workflows and proposes new skills to automate |
@@ -144,6 +175,7 @@ Recurring task logic: when a task with `recurringConfig` is marked "done", the P
 | `/db-inspect [query]` | Read-only SQLite inspection — table counts, schema, or ad-hoc SELECT queries |
 | `/perf` | Bundle size analysis + test timing profiling with recommendations |
 | `/a11y` | axe-core accessibility audit across all views via Playwright |
+| `/deploy` | Deploy to Fly.io, monitor for success, and health-check the live production URL |
 
 ## Known Issues
 

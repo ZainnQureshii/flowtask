@@ -1,12 +1,82 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { TaskStatus } from '@flowtask/shared';
 import { useTaskStore } from '@/stores/taskStore';
 import { formatDuration } from '@/lib/utils';
-import { CheckCircle, Clock, Timer, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Clock, Flame, Zap } from 'lucide-react';
 import { subDays, format, startOfDay, isAfter } from 'date-fns';
+import { gsap } from '@/lib/gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+interface StatCardProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  sub?: string;
+  iconColor: string;
+  iconBg: string;
+}
+
+function StatCard({ icon, label, value, sub, iconColor, iconBg }: StatCardProps) {
+  const valueRef = useRef<HTMLSpanElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  // Scroll reveal + count-up via GSAP ScrollTrigger
+  useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+
+    const trigger = ScrollTrigger.create({
+      trigger: card,
+      start: 'top 90%',
+      once: true,
+      onEnter: () => {
+        gsap.fromTo(
+          card,
+          { opacity: 0, y: 12 },
+          { opacity: 1, y: 0, duration: 0.35, ease: 'power2.out', clearProps: 'transform,opacity' }
+        );
+      },
+    });
+
+    return () => trigger.kill();
+  }, []);
+
+  return (
+    <div
+      ref={cardRef}
+      className="flex items-center gap-3 rounded-[var(--radius-md)] p-3"
+      style={{
+        background: 'var(--color-surface)',
+        border: '1px solid var(--color-border-subtle)',
+        opacity: 0, // Start hidden for scroll reveal
+      }}
+    >
+      <div
+        className="flex items-center justify-center rounded-[var(--radius-sm)] shrink-0"
+        style={{ width: 36, height: 36, background: iconBg, color: iconColor }}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs" style={{ color: 'var(--color-text-tertiary)' }}>{label}</p>
+        <span
+          ref={valueRef}
+          className="text-xl font-bold font-display block"
+          style={{ color: 'var(--color-text-primary)', lineHeight: 1.2 }}
+        >
+          {value}
+        </span>
+        {sub && (
+          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>{sub}</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function StatsPanel() {
   const { tasks } = useTaskStore();
+  const chartRef = useRef<HTMLDivElement>(null);
 
   const stats = useMemo(() => {
     const now = new Date();
@@ -22,8 +92,8 @@ export function StatsPanel() {
       (sum, t) => sum + t.pomodoroSessions.filter((s) => s.completed && s.type === 'work').length,
       0,
     );
+    const inProgressCount = tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS).length;
 
-    // Weekly breakdown
     const dailyStats = Array.from({ length: 7 }, (_, i) => {
       const day = subDays(now, 6 - i);
       const dayStart = startOfDay(day);
@@ -39,58 +109,107 @@ export function StatsPanel() {
 
     const maxDaily = Math.max(...dailyStats.map((d) => d.completed), 1);
 
-    return { completedTotal, completedThisWeek, totalFocusTime, pomodoroCount, dailyStats, maxDaily };
+    return { completedTotal, completedThisWeek, totalFocusTime, pomodoroCount, inProgressCount, dailyStats, maxDaily };
   }, [tasks]);
 
-  return (
-    <div className="space-y-6">
-      <h3 className="text-sm font-medium">Productivity Stats</h3>
+  // Animate bars on scroll reveal
+  useEffect(() => {
+    const container = chartRef.current;
+    if (!container) return;
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-lg border bg-card p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <CheckCircle className="h-4 w-4 text-green-500" />
-            <span className="text-xs text-muted-foreground">Completed</span>
-          </div>
-          <p className="text-2xl font-bold">{stats.completedTotal}</p>
-          <p className="text-xs text-muted-foreground">{stats.completedThisWeek} this week</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Clock className="h-4 w-4 text-blue-500" />
-            <span className="text-xs text-muted-foreground">Focus Time</span>
-          </div>
-          <p className="text-2xl font-bold">{formatDuration(stats.totalFocusTime)}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <Timer className="h-4 w-4 text-orange-500" />
-            <span className="text-xs text-muted-foreground">Pomodoros</span>
-          </div>
-          <p className="text-2xl font-bold">{stats.pomodoroCount}</p>
-        </div>
-        <div className="rounded-lg border bg-card p-3">
-          <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-4 w-4 text-purple-500" />
-            <span className="text-xs text-muted-foreground">Active</span>
-          </div>
-          <p className="text-2xl font-bold">{tasks.filter((t) => t.status === TaskStatus.IN_PROGRESS).length}</p>
-        </div>
+    const trigger = ScrollTrigger.create({
+      trigger: container,
+      start: 'top 90%',
+      once: true,
+      onEnter: () => {
+        const bars = container.querySelectorAll<HTMLElement>('[data-bar]');
+        bars.forEach((bar) => {
+          const targetHeight = bar.getAttribute('data-target-height') ?? '0%';
+          gsap.fromTo(
+            bar,
+            { scaleY: 0, transformOrigin: 'bottom' },
+            { scaleY: 1, duration: 0.6, ease: 'power2.out', delay: parseFloat(bar.getAttribute('data-delay') ?? '0') }
+          );
+          // Also animate height via CSS variable
+          gsap.to(bar, {
+            height: targetHeight,
+            duration: 0.6,
+            ease: 'power2.out',
+            delay: parseFloat(bar.getAttribute('data-delay') ?? '0'),
+          });
+        });
+      },
+    });
+
+    return () => trigger.kill();
+  }, [stats.dailyStats]);
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-tertiary)' }}>
+        Productivity Stats
+      </p>
+
+      <div className="grid grid-cols-2 gap-2">
+        <StatCard
+          icon={<CheckCircle2 style={{ width: 18, height: 18 }} />}
+          label="Completed"
+          value={String(stats.completedTotal)}
+          sub={`${stats.completedThisWeek} this week`}
+          iconColor="var(--color-success)"
+          iconBg="var(--color-success-muted)"
+        />
+        <StatCard
+          icon={<Clock style={{ width: 18, height: 18 }} />}
+          label="Focus Time"
+          value={formatDuration(stats.totalFocusTime)}
+          iconColor="var(--color-info)"
+          iconBg="var(--color-info-muted)"
+        />
+        <StatCard
+          icon={<Flame style={{ width: 18, height: 18 }} />}
+          label="Pomodoros"
+          value={String(stats.pomodoroCount)}
+          iconColor="var(--color-warning)"
+          iconBg="var(--color-warning-muted)"
+        />
+        <StatCard
+          icon={<Zap style={{ width: 18, height: 18 }} />}
+          label="In Progress"
+          value={String(stats.inProgressCount)}
+          iconColor="var(--color-primary)"
+          iconBg="var(--color-primary-muted)"
+        />
       </div>
 
-      {/* Weekly chart */}
+      {/* Weekly activity chart */}
       <div>
-        <h4 className="text-xs font-medium text-muted-foreground mb-2">This Week</h4>
-        <div className="flex items-end gap-1 h-24">
-          {stats.dailyStats.map((day) => (
-            <div key={day.label} className="flex-1 flex flex-col items-center gap-1">
-              <div
-                className="w-full rounded-sm bg-primary/80 transition-all min-h-[2px]"
-                style={{ height: `${(day.completed / stats.maxDaily) * 100}%` }}
-              />
-              <span className="text-[10px] text-muted-foreground">{day.label}</span>
-            </div>
-          ))}
+        <p className="text-xs font-medium mb-2" style={{ color: 'var(--color-text-tertiary)' }}>
+          This Week
+        </p>
+        <div ref={chartRef} className="flex items-end gap-1.5 h-20">
+          {stats.dailyStats.map((day, i) => {
+            const heightPct = `${Math.max((day.completed / stats.maxDaily) * 100, 4)}%`;
+            return (
+              <div key={day.label} className="flex-1 flex flex-col items-center gap-1">
+                <div
+                  data-bar
+                  data-target-height={heightPct}
+                  data-delay={String(i * 0.04)}
+                  className="w-full rounded-[4px] transition-colors"
+                  style={{
+                    height: heightPct,
+                    background: day.completed > 0 ? 'var(--color-primary)' : 'var(--color-border)',
+                    minHeight: 4,
+                    opacity: day.completed > 0 ? 0.85 : 1,
+                  }}
+                />
+                <span className="text-[11px]" style={{ color: 'var(--color-text-tertiary)' }}>
+                  {day.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

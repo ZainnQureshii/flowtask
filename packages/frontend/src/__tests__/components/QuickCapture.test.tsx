@@ -61,20 +61,20 @@ beforeEach(() => {
 describe('QuickCapture', () => {
   it('should render when open', () => {
     render(<QuickCapture />);
-    expect(screen.getByPlaceholderText(/Type a task/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Add a task/)).toBeInTheDocument();
   });
 
   it('should not render dialog content when closed', () => {
     useUIStore.setState({ isQuickCaptureOpen: false });
     render(<QuickCapture />);
-    expect(screen.queryByPlaceholderText(/Type a task/)).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/Add a task/)).not.toBeInTheDocument();
   });
 
   it('should create task on Enter', async () => {
     vi.mocked(api.createTask).mockResolvedValue(mockTask({ title: 'Buy groceries' }));
 
     render(<QuickCapture />);
-    const input = screen.getByPlaceholderText(/Type a task/);
+    const input = screen.getByPlaceholderText(/Add a task/);
 
     await userEvent.type(input, 'Buy groceries');
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -90,7 +90,7 @@ describe('QuickCapture', () => {
     vi.mocked(api.createTask).mockResolvedValue(mockTask({ title: 'Fix bug', priority: 'high' }));
 
     render(<QuickCapture />);
-    const input = screen.getByPlaceholderText(/Type a task/);
+    const input = screen.getByPlaceholderText(/Add a task/);
 
     await userEvent.type(input, 'Fix bug !high');
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -115,7 +115,7 @@ describe('QuickCapture', () => {
     vi.mocked(api.createTask).mockResolvedValue(mockTask({ title: 'Do stuff' }));
 
     render(<QuickCapture />);
-    const input = screen.getByPlaceholderText(/Type a task/);
+    const input = screen.getByPlaceholderText(/Add a task/);
 
     await userEvent.type(input, 'Do stuff #work');
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -131,7 +131,7 @@ describe('QuickCapture', () => {
     vi.mocked(api.createTask).mockResolvedValue(mockTask({ title: 'Submit report', dueDate: '2025-06-15' }));
 
     render(<QuickCapture />);
-    const input = screen.getByPlaceholderText(/Type a task/);
+    const input = screen.getByPlaceholderText(/Add a task/);
 
     await userEvent.type(input, 'Submit report @2025-06-15');
     fireEvent.keyDown(input, { key: 'Enter' });
@@ -149,7 +149,7 @@ describe('QuickCapture', () => {
     vi.mocked(api.createTask).mockResolvedValue(mockTask({ title: 'Task' }));
 
     render(<QuickCapture />);
-    const input = screen.getByPlaceholderText(/Type a task/);
+    const input = screen.getByPlaceholderText(/Add a task/);
 
     await userEvent.type(input, 'Task #newtag');
     fireEvent.keyDown(input, { key: 'Enter' });

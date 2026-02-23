@@ -8,6 +8,21 @@ import { PRIORITY_ORDER } from '@flowtask/shared';
 const KanbanView = lazy(() => import('@/components/views/KanbanView').then((m) => ({ default: m.KanbanView })));
 const CalendarView = lazy(() => import('@/components/views/CalendarView').then((m) => ({ default: m.CalendarView })));
 
+// Skeleton for Kanban / Calendar while lazy-loading
+function ViewSkeleton() {
+  return (
+    <div className="space-y-1.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div
+          key={i}
+          className="skeleton h-[52px] w-full rounded-lg"
+          style={{ opacity: 1 - i * 0.12 }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function TasksPage() {
   const { tasks, filters, fetchTasks, fetchTags, isLoading } = useTaskStore();
   const { activeView } = useUIStore();
@@ -49,23 +64,19 @@ export function TasksPage() {
     <div className="space-y-4 h-full">
       <TaskFilters />
 
-      {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        </div>
-      ) : (
-        <Suspense
-          fallback={
-            <div className="flex items-center justify-center py-16">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            </div>
-          }
-        >
-          {activeView === 'list' && <ListView tasks={filteredTasks} />}
-          {activeView === 'kanban' && <KanbanView tasks={filteredTasks} />}
-          {activeView === 'calendar' && <CalendarView tasks={filteredTasks} />}
-        </Suspense>
-      )}
+      <Suspense fallback={<ViewSkeleton />}>
+        {activeView === 'list' && (
+          <ListView tasks={filteredTasks} isLoading={isLoading} />
+        )}
+        {activeView === 'kanban' && !isLoading && (
+          <KanbanView tasks={filteredTasks} />
+        )}
+        {activeView === 'kanban' && isLoading && <ViewSkeleton />}
+        {activeView === 'calendar' && !isLoading && (
+          <CalendarView tasks={filteredTasks} />
+        )}
+        {activeView === 'calendar' && isLoading && <ViewSkeleton />}
+      </Suspense>
     </div>
   );
 }

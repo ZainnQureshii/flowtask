@@ -24,7 +24,8 @@ function SortableTaskCard({ task }: { task: Task }) {
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.5 : 1,
+    opacity: isDragging ? 0.4 : 1,
+    // Scale up slightly when dragging (handled by parent DragOverlay instead)
   };
 
   return (
@@ -43,34 +44,70 @@ export function KanbanColumn({ status, tasks, label }: KanbanColumnProps) {
 
   return (
     <div
+      data-kanban-column
       ref={setNodeRef}
       className={cn(
-        'flex flex-col rounded-lg bg-muted/50 p-2 min-w-[280px] w-[280px] h-full',
-        isOver && 'ring-2 ring-primary ring-dashed',
+        'flex flex-col rounded-xl min-w-[280px] w-[280px] h-full',
+        'bg-[var(--color-surface-raised)] border border-[var(--color-border-subtle)]',
+        'transition-colors duration-150',
+        isOver && 'bg-[var(--color-primary-muted)] border-[var(--color-border-focus)]',
       )}
+      style={{ padding: 12 }}
     >
-      <div className="flex items-center justify-between px-2 py-1 mb-2">
-        <h3 className="text-sm font-semibold capitalize">{label}</h3>
-        <span className="text-xs text-muted-foreground rounded-full bg-muted px-2 py-0.5">
+      {/* Column header */}
+      <div className="flex items-center justify-between px-1 py-1 mb-3">
+        <h3 className="text-[14px] font-semibold text-[var(--color-text-primary)]">{label}</h3>
+        <span
+          className="text-[12px] font-medium text-[var(--color-text-tertiary)] rounded-full px-2 py-0.5"
+          style={{ backgroundColor: 'var(--color-surface-hover)' }}
+        >
           {tasks.length}
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto space-y-2">
+      {/* Drop indicator when dragging over */}
+      {isOver && tasks.length === 0 && (
+        <div
+          data-drop-placeholder
+          className="h-[52px] rounded-lg mb-2 flex items-center justify-center"
+          style={{
+            border: '2px dashed var(--color-primary)',
+            background: 'var(--color-drag-ph)',
+          }}
+        >
+          <span className="text-[12px] text-[var(--color-primary)] font-medium">Drop here</span>
+        </div>
+      )}
+
+      {/* Cards */}
+      <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
         <SortableContext items={tasks.map((t) => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map((task) => (
             <SortableTaskCard key={task.id} task={task} />
           ))}
         </SortableContext>
+
+        {/* Empty column state */}
+        {tasks.length === 0 && !isOver && (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <p className="text-[13px] text-[var(--color-text-tertiary)]">No tasks</p>
+          </div>
+        )}
       </div>
 
+      {/* Add task button */}
       <Button
         variant="ghost"
         size="sm"
-        className="mt-2 w-full justify-start gap-1 text-muted-foreground"
+        className={cn(
+          'mt-3 w-full justify-start gap-1.5 text-[13px] font-medium',
+          'text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]',
+          'border border-dashed border-[var(--color-border)] hover:border-[var(--color-border-strong)]',
+          'rounded-lg transition-colors duration-100',
+        )}
         onClick={() => openTaskForm({ status })}
       >
-        <Plus className="h-4 w-4" /> Add task
+        <Plus className="h-3.5 w-3.5" /> Add task
       </Button>
     </div>
   );

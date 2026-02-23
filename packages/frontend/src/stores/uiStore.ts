@@ -6,6 +6,7 @@ interface UIStore {
   theme: Theme;
   activeView: ViewMode;
   sidebarCollapsed: boolean;
+  isMobileDrawerOpen: boolean;
   selectedTaskId: string | null;
   isQuickCaptureOpen: boolean;
   isTaskFormOpen: boolean;
@@ -14,6 +15,8 @@ interface UIStore {
   setTheme: (theme: Theme) => void;
   setActiveView: (view: ViewMode) => void;
   toggleSidebar: () => void;
+  openMobileDrawer: () => void;
+  closeMobileDrawer: () => void;
   selectTask: (id: string | null) => void;
   toggleQuickCapture: () => void;
   openTaskForm: (defaultValues?: Partial<CreateTaskInput>) => void;
@@ -35,6 +38,7 @@ export const useUIStore = create<UIStore>()(
       theme: 'system',
       activeView: 'list',
       sidebarCollapsed: false,
+      isMobileDrawerOpen: false,
       selectedTaskId: null,
       isQuickCaptureOpen: false,
       isTaskFormOpen: false,
@@ -47,6 +51,8 @@ export const useUIStore = create<UIStore>()(
 
       setActiveView: (activeView) => set({ activeView }),
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+      openMobileDrawer: () => set({ isMobileDrawerOpen: true }),
+      closeMobileDrawer: () => set({ isMobileDrawerOpen: false }),
       selectTask: (selectedTaskId) => set({ selectedTaskId }),
       toggleQuickCapture: () => set((s) => ({ isQuickCaptureOpen: !s.isQuickCaptureOpen })),
 

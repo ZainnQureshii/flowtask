@@ -11,7 +11,7 @@ import { formatDate, formatDateFull, isOverdue, cn } from '@/lib/utils';
 import {
   X, Timer, Play, Trash2, Calendar, AlertCircle, ArrowUp, ArrowDown, Minus, Repeat,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 
 interface TaskDetailProps {
   taskId: string;

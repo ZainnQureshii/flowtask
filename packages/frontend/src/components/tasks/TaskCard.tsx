@@ -1,89 +1,242 @@
-import type { Task, Priority } from '@flowtask/shared';
+import type { Task } from '@flowtask/shared';
 import { TaskStatus } from '@flowtask/shared';
 import { useTaskStore } from '@/stores/taskStore';
 import { useUIStore } from '@/stores/uiStore';
 import { useTimerStore } from '@/stores/timerStore';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import { TagBadge } from '@/components/tags/TagBadge';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import { cn, formatDate, isOverdue, formatDuration } from '@/lib/utils';
-import {
-  AlertCircle, ArrowUp, ArrowDown, Minus, MoreHorizontal,
-  Pencil, Trash2, Clock, Repeat, Timer,
-} from 'lucide-react';
-import { motion } from 'framer-motion';
+import { getPriorityColor } from '@/lib/priority';
+import { MoreHorizontal, Pencil, Trash2, Clock, Repeat, Timer, CalendarDays } from 'lucide-react';
+import { motion } from 'motion/react';
+import { useRef, useCallback } from 'react';
+import gsap from '@/lib/gsap';
+import { taskEnter } from '@/lib/motion';
+import type { Priority } from '@flowtask/shared';
 
 interface TaskCardProps {
   task: Task;
   variant?: 'list' | 'kanban';
 }
 
-const priorityConfig: Record<Priority, { icon: typeof AlertCircle; color: string; label: string; bgClass: string }> = {
-  urgent: { icon: AlertCircle, color: 'text-red-500', label: 'Urgent', bgClass: 'bg-red-500/10' },
-  high: { icon: ArrowUp, color: 'text-orange-500', label: 'High', bgClass: 'bg-orange-500/10' },
-  medium: { icon: Minus, color: 'text-yellow-500', label: 'Medium', bgClass: 'bg-yellow-500/10' },
-  low: { icon: ArrowDown, color: 'text-gray-400', label: 'Low', bgClass: 'bg-gray-400/10' },
-};
-
 const PRIORITY_VALUES: Priority[] = ['urgent', 'high', 'medium', 'low'];
+
+// Animated checkbox component using GSAP
+function PriorityCheckbox({
+  checked,
+  priority,
+  onToggle,
+  label,
+}: {
+  checked: boolean;
+  priority: Priority;
+  onToggle: () => void;
+  label: string;
+}) {
+  const svgRef = useRef<SVGSVGElement>(null);
+  const circleRef = useRef<SVGCircleElement>(null);
+  const checkRef = useRef<SVGPathElement>(null);
+  const pc = getPriorityColor(priority);
+
+  const handleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const svg = svgRef.current;
+      const circle = circleRef.current;
+      const check = checkRef.current;
+      if (!svg || !circle || !check) { onToggle(); return; }
+
+      if (!checked) {
+        // Animate: fill circle → draw checkmark
+        const tl = gsap.timeline({ onComplete: onToggle });
+        tl.to(circle, { attr: { fill: pc.color }, duration: 0.1, ease: 'none' });
+        tl.to(check, { strokeDashoffset: 0, duration: 0.2, ease: 'power2.out' }, '-=0.02');
+      } else {
+        // Immediate un-check
+        gsap.set(circle, { attr: { fill: 'transparent' } });
+        gsap.set(check, { strokeDashoffset: 20 });
+        onToggle();
+      }
+    },
+    [checked, pc.color, onToggle],
+  );
+
+  return (
+    <button
+      onClick={handleClick}
+      aria-label={label}
+      className="shrink-0 rounded-full focus-ring"
+      style={{ width: 20, height: 20 }}
+    >
+      <svg
+        ref={svgRef}
+        width="20"
+        height="20"
+        viewBox="0 0 20 20"
+        aria-hidden="true"
+        style={{ display: 'block' }}
+      >
+        <circle
+          ref={circleRef}
+          cx="10"
+          cy="10"
+          r="8"
+          fill={checked ? pc.color : 'transparent'}
+          stroke={pc.color}
+          strokeWidth="1.5"
+          style={{ transition: 'fill 100ms' }}
+        />
+        <path
+          ref={checkRef}
+          d="M 5.5 10 L 8.5 13 L 14.5 7"
+          fill="none"
+          stroke="white"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="20"
+          strokeDashoffset={checked ? 0 : 20}
+          style={{ transition: checked ? 'stroke-dashoffset 200ms ease-out' : undefined }}
+        />
+      </svg>
+    </button>
+  );
+}
 
 export function TaskCard({ task, variant = 'list' }: TaskCardProps) {
   const { updateTask, deleteTask } = useTaskStore();
   const { selectTask, openTaskForm } = useUIStore();
   const { startTimeTracking } = useTimerStore();
 
-  const pConfig = priorityConfig[task.priority];
-  const PriorityIcon = pConfig.icon;
+  const pc = getPriorityColor(task.priority);
+  const isDone = task.status === TaskStatus.DONE;
   const completedSubtasks = task.subtasks.filter((s) => s.completed).length;
   const totalSubtasks = task.subtasks.length;
+  const subtaskProgress = totalSubtasks > 0 ? (completedSubtasks / totalSubtasks) * 100 : 0;
 
   function handleToggleDone() {
     updateTask(task.id, {
-      status: task.status === TaskStatus.DONE ? TaskStatus.TODO : TaskStatus.DONE,
+      status: isDone ? TaskStatus.TODO : TaskStatus.DONE,
     });
   }
 
   if (variant === 'kanban') {
     return (
       <div
+        data-kanban-card
         onClick={() => selectTask(task.id)}
         className={cn(
-          'cursor-pointer rounded-lg border bg-card p-3 shadow-sm hover:shadow-md transition-shadow',
-          task.status === TaskStatus.DONE && 'opacity-60',
+          'group relative cursor-pointer rounded-lg border bg-[var(--color-surface)] p-4 overflow-hidden',
+          'shadow-[var(--shadow-sm)] hover:shadow-[var(--shadow-md)] hover:-translate-y-0.5',
+          'transition-all duration-150 ease-out',
+          isDone && 'opacity-60',
         )}
-        style={{ borderLeftWidth: 3, borderLeftColor: task.color || 'transparent' }}
+        style={{
+          borderLeftWidth: 3,
+          borderLeftColor: pc.color,
+        }}
       >
-        <div className="flex items-start justify-between gap-2">
-          <p className={cn('text-sm font-medium leading-tight', task.status === TaskStatus.DONE && 'line-through')}>
-            {task.title}
-          </p>
-          <Badge variant="outline" className={cn('shrink-0 text-[10px] px-1.5', pConfig.bgClass, pConfig.color)}>
-            <PriorityIcon className="h-2.5 w-2.5 mr-0.5" />
-            {pConfig.label}
-          </Badge>
+        {/* Header: priority badge + menu */}
+        <div className="flex items-center justify-between gap-2 mb-2">
+          <span
+            className="inline-flex items-center gap-1 rounded text-[11px] font-medium px-1.5 py-0.5"
+            style={{ color: pc.color, backgroundColor: pc.muted }}
+          >
+            {pc.label}
+          </span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
+              >
+                <MoreHorizontal className="h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem onClick={() => openTaskForm({ ...task })}>
+                <Pencil className="h-3.5 w-3.5 mr-2" /> Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => startTimeTracking(task.id)}>
+                <Timer className="h-3.5 w-3.5 mr-2" /> Start Timer
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {PRIORITY_VALUES.map((p) => (
+                <DropdownMenuItem key={p} onClick={() => updateTask(task.id, { priority: p })}>
+                  Set {p}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="text-[var(--color-destructive)]"
+                onClick={() => deleteTask(task.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        <div className="mt-2 flex flex-wrap gap-1">
-          {task.tags.slice(0, 3).map((tag) => (
-            <TagBadge key={tag.id} tag={tag} />
-          ))}
-          {task.tags.length > 3 && (
-            <span className="text-[10px] text-muted-foreground">+{task.tags.length - 3}</span>
+        {/* Title */}
+        <p
+          className={cn(
+            'text-[14px] font-semibold leading-snug text-[var(--color-text-primary)] mb-2',
+            isDone && 'line-through text-[var(--color-text-tertiary)]',
           )}
-        </div>
+        >
+          {task.title}
+        </p>
 
-        <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+        {/* Tags */}
+        {task.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {task.tags.slice(0, 3).map((tag) => (
+              <TagBadge key={tag.id} tag={tag} className="text-[11px] px-1.5 py-0" />
+            ))}
+            {task.tags.length > 3 && (
+              <span className="text-[11px] text-[var(--color-text-tertiary)] self-center">
+                +{task.tags.length - 3}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Progress bar */}
+        {totalSubtasks > 0 && (
+          <div className="mb-2">
+            <div
+              className="h-[3px] rounded-full overflow-hidden"
+              style={{ backgroundColor: pc.muted }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{ width: `${subtaskProgress}%`, backgroundColor: pc.color }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Metadata row */}
+        <div className="flex items-center gap-3 text-[12px] text-[var(--color-text-tertiary)] mt-1">
           {task.dueDate && (
-            <span className={cn(isOverdue(task.dueDate) && 'text-destructive font-medium')}>
+            <span
+              className={cn(
+                'flex items-center gap-1',
+                isOverdue(task.dueDate) && !isDone && 'text-[var(--color-destructive)] font-medium',
+              )}
+            >
+              <CalendarDays className="h-3 w-3" />
               {formatDate(task.dueDate)}
             </span>
           )}
           {totalSubtasks > 0 && (
-            <span>{completedSubtasks}/{totalSubtasks}</span>
+            <span>
+              {completedSubtasks}/{totalSubtasks}
+            </span>
           )}
           {task.totalTimeSpent > 0 && (
             <span className="flex items-center gap-0.5">
@@ -100,66 +253,98 @@ export function TaskCard({ task, variant = 'list' }: TaskCardProps) {
   // List variant
   return (
     <motion.div
+      data-task-item
       layout
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0, height: 0 }}
+      variants={taskEnter}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
       onClick={() => selectTask(task.id)}
       className={cn(
-        'flex items-center gap-3 rounded-lg border bg-card px-3 py-2 cursor-pointer hover:bg-accent/50 transition-colors group',
-        task.status === TaskStatus.DONE && 'opacity-60',
+        'group relative flex items-center gap-3 px-4 py-3 min-h-[52px] cursor-pointer rounded-lg',
+        'border border-[var(--color-border)] bg-[var(--color-surface)]',
+        'hover:bg-[var(--color-surface-hover)] transition-colors duration-100',
+        isDone && 'opacity-60',
       )}
-      style={{ borderLeftWidth: 3, borderLeftColor: task.color || 'transparent' }}
+      style={{
+        borderLeftWidth: 3,
+        borderLeftColor: pc.color,
+      }}
     >
-      <Checkbox
-        checked={task.status === TaskStatus.DONE}
-        onCheckedChange={() => handleToggleDone()}
-        onClick={(e) => e.stopPropagation()}
-        aria-label={`Mark "${task.title}" as ${task.status === TaskStatus.DONE ? 'todo' : 'done'}`}
+      {/* Checkbox */}
+      <PriorityCheckbox
+        checked={isDone}
+        priority={task.priority}
+        onToggle={handleToggleDone}
+        label={`Mark "${task.title}" as ${isDone ? 'todo' : 'done'}`}
       />
 
+      {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={cn('text-sm font-medium truncate', task.status === TaskStatus.DONE && 'line-through')}>
+          <span
+            className={cn(
+              'text-[15px] font-medium text-[var(--color-text-primary)] truncate',
+              isDone && 'line-through text-[var(--color-text-tertiary)]',
+            )}
+          >
             {task.title}
           </span>
-          {task.recurringConfig && <Repeat className="h-3 w-3 text-muted-foreground shrink-0" />}
+          {task.recurringConfig && (
+            <Repeat className="h-3 w-3 text-[var(--color-text-tertiary)] shrink-0" />
+          )}
         </div>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          {task.tags.slice(0, 3).map((tag) => (
-            <TagBadge key={tag.id} tag={tag} className="text-[10px] px-1.5 py-0" />
-          ))}
-        </div>
+        {task.tags.length > 0 && (
+          <div className="flex items-center gap-1 mt-1">
+            {task.tags.slice(0, 3).map((tag) => (
+              <TagBadge key={tag.id} tag={tag} className="text-[11px] px-1.5 py-0" />
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="flex items-center gap-2">
-        <Badge variant="outline" className={cn('text-[10px] px-1.5', pConfig.bgClass, pConfig.color)}>
-          <PriorityIcon className="h-2.5 w-2.5" />
-        </Badge>
-
+      {/* Right metadata */}
+      <div className="flex items-center gap-2 shrink-0">
         {task.dueDate && (
-          <span className={cn('text-xs text-muted-foreground', isOverdue(task.dueDate) && 'text-destructive')}>
+          <span
+            className={cn(
+              'text-[13px] text-[var(--color-text-tertiary)] flex items-center gap-1',
+              isOverdue(task.dueDate) && !isDone && 'text-[var(--color-destructive)] font-medium',
+            )}
+          >
+            <CalendarDays className="h-3.5 w-3.5" />
             {formatDate(task.dueDate)}
           </span>
         )}
-
         {totalSubtasks > 0 && (
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[13px] text-[var(--color-text-tertiary)]">
             {completedSubtasks}/{totalSubtasks}
           </span>
         )}
-
         {task.totalTimeSpent > 0 && (
-          <span className="text-xs text-muted-foreground flex items-center gap-0.5">
-            <Clock className="h-3 w-3" />
+          <span className="text-[13px] text-[var(--color-text-tertiary)] flex items-center gap-0.5">
+            <Clock className="h-3.5 w-3.5" />
             {formatDuration(task.totalTimeSpent)}
           </span>
         )}
+
+        {/* Priority label — visible only on hover */}
+        <span
+          className="hidden group-hover:inline-flex items-center rounded text-[11px] font-medium px-1.5 py-0.5 transition-opacity"
+          style={{ color: pc.color, backgroundColor: pc.muted }}
+        >
+          {pc.label}
+        </span>
       </div>
 
+      {/* Actions menu */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-          <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 opacity-0 group-hover:opacity-100 text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)]"
+          >
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
@@ -177,7 +362,10 @@ export function TaskCard({ task, variant = 'list' }: TaskCardProps) {
             </DropdownMenuItem>
           ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-destructive" onClick={() => deleteTask(task.id)}>
+          <DropdownMenuItem
+            className="text-[var(--color-destructive)]"
+            onClick={() => deleteTask(task.id)}
+          >
             <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>

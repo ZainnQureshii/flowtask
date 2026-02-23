@@ -2,110 +2,476 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ============================================================
+   FLOWTASK DESIGN SYSTEM v1.0
+   Philosophy: Things 3 minimalism × Linear dark sophistication × Todoist approachability
+   Calm, premium, fast. Every pixel intentional.
+   ============================================================ */
+
 @theme {
-  --color-background: #ffffff;
-  --color-foreground: #0a0a0a;
-  --color-card: #ffffff;
-  --color-card-foreground: #0a0a0a;
-  --color-popover: #ffffff;
-  --color-popover-foreground: #0a0a0a;
-  --color-primary: #3b82f6;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #f1f5f9;
-  --color-secondary-foreground: #0f172a;
-  --color-muted: #f1f5f9;
-  --color-muted-foreground: #64748b;
-  --color-accent: #f1f5f9;
-  --color-accent-foreground: #0f172a;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-border: #e2e8f0;
-  --color-input: #e2e8f0;
-  --color-ring: #3b82f6;
-  --color-sidebar: #f8fafc;
-  --color-sidebar-foreground: #0f172a;
-  --color-sidebar-border: #e2e8f0;
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
+  /* === FONTS === */
+  --font-sans:    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Manrope", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    "JetBrains Mono", "Fira Code", "Courier New", monospace;
+
+  /* === BRAND VIOLET PALETTE === */
+  --color-violet-50:  #F2EFFF;
+  --color-violet-100: #E0D9FF;
+  --color-violet-200: #C2B5FF;
+  --color-violet-300: #9E8AF5;
+  --color-violet-400: #8170E8;
+  --color-violet-500: #6D56D4;
+  --color-violet-600: #5944BC;
+  --color-violet-700: #4535A0;
+  --color-violet-800: #322884;
+  --color-violet-900: #1F1A68;
+
+  /* === SEMANTIC COLORS (light mode defaults) === */
+
+  /* Backgrounds */
+  --color-bg:               #FAFAFA;
+  --color-surface:          #FFFFFF;
+  --color-surface-raised:   #F5F5F7;
+  --color-surface-overlay:  #F0EFF6;
+  --color-sidebar:          #F2F2F5;
+  --color-surface-hover:    #EBEBEF;
+  --color-surface-selected: #E8E4F8;
+
+  /* Text */
+  --color-text-primary:     #1C1C2E;
+  --color-text-secondary:   #5E5E7A;
+  --color-text-tertiary:    #9898B2;
+  --color-text-disabled:    #C4C4D4;
+  --color-text-on-primary:  #FFFFFF;
+
+  /* Borders */
+  --color-border:           #E2E2EC;
+  --color-border-subtle:    #EBEBF5;
+  --color-border-strong:    #C8C8DE;
+  --color-border-focus:     #6D56D4;
+
+  /* Interactive — Violet */
+  --color-primary:            #6D56D4;
+  --color-primary-hover:      #5944BC;
+  --color-primary-muted:      #E8E4F8;
+  --color-primary-foreground: #FFFFFF;
+
+  /* Semantic */
+  --color-success:           #1E9E6E;
+  --color-success-muted:     #EAFAF4;
+  --color-warning:           #C87800;
+  --color-warning-muted:     #FEF9EC;
+  --color-destructive:       #D93636;
+  --color-destructive-muted: #FEF0F0;
+  --color-info:              #0570DE;
+  --color-info-muted:        #EEF4FF;
+
+  /* Priority */
+  --color-p1:       #E5484D;
+  --color-p1-muted: #FEF0F0;
+  --color-p2:       #E5890A;
+  --color-p2-muted: #FEF9EC;
+  --color-p3:       #0570DE;
+  --color-p3-muted: #EEF4FF;
+  --color-p4:       #8B8D98;
+  --color-p4-muted: #F4F4F6;
+
+  /* === shadcn/ui COMPATIBILITY ALIASES === */
+  /* These reference the new FlowTask tokens above — no circular references */
+  --color-background:           var(--color-bg);
+  --color-foreground:           var(--color-text-primary);
+  --color-card:                 var(--color-surface);
+  --color-card-foreground:      var(--color-text-primary);
+  --color-popover:              var(--color-surface-overlay);
+  --color-popover-foreground:   var(--color-text-primary);
+  --color-secondary:            var(--color-surface-raised);
+  --color-secondary-foreground: var(--color-text-secondary);
+  --color-muted:                var(--color-surface-hover);
+  --color-muted-foreground:     var(--color-text-tertiary);
+  --color-accent:               var(--color-primary-muted);
+  --color-accent-foreground:    var(--color-primary);
+  --color-input:                var(--color-border);
+  --color-ring:                 var(--color-border-focus);
+  --color-sidebar-background:   var(--color-sidebar);
+  --color-sidebar-foreground:   var(--color-text-primary);
+  --color-sidebar-primary:      var(--color-primary);
+  --color-sidebar-primary-foreground: var(--color-primary-foreground);
+  --color-sidebar-accent:       var(--color-surface-hover);
+  --color-sidebar-accent-foreground: var(--color-text-secondary);
+  --color-sidebar-border:       var(--color-border-subtle);
+  --color-sidebar-ring:         var(--color-border-focus);
+
+  /* === SHADOWS (light mode) === */
+  --shadow-xs: 0 1px 2px rgba(28,28,46,0.04), 0 1px 1px rgba(28,28,46,0.03);
+  --shadow-sm: 0 1px 4px rgba(28,28,46,0.07), 0 1px 2px rgba(28,28,46,0.05);
+  --shadow-md: 0 4px 10px rgba(28,28,46,0.08), 0 2px 4px rgba(28,28,46,0.05);
+  --shadow-lg: 0 12px 28px rgba(28,28,46,0.10), 0 4px 8px rgba(28,28,46,0.06);
+  --shadow-xl: 0 24px 56px rgba(28,28,46,0.14), 0 12px 24px rgba(28,28,46,0.08);
+
+  /* === BORDER RADIUS === */
+  --radius-sm:   4px;
+  --radius:      6px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-2xl:  20px;
+  --radius-full: 9999px;
+
+  /* === FONT SIZES (type scale) === */
+  --text-micro:   11px;
+  --text-label:   12px;
+  --text-body-sm: 13px;
+  --text-body:    14px;
+  --text-body-lg: 16px;
+  --text-h3:      18px;
+  --text-h2:      22px;
+  --text-h1:      28px;
+  --text-display: 36px;
+
+  /* === FONT WEIGHTS === */
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  /* === LINE HEIGHTS === */
+  --leading-micro:   1.3;
+  --leading-label:   1.4;
+  --leading-body-sm: 1.5;
+  --leading-body:    1.55;
+  --leading-body-lg: 1.6;
+  --leading-heading: 1.35;
+  --leading-display: 1.2;
+
+  /* === BREAKPOINTS === */
+  --breakpoint-xs:  375px;
+  --breakpoint-sm:  640px;
+  --breakpoint-md:  768px;
+  --breakpoint-lg:  1024px;
+  --breakpoint-xl:  1280px;
+  --breakpoint-2xl: 1536px;
+
+  /* === LAYOUT DIMENSIONS === */
+  --sidebar-width:           240px;
+  --sidebar-collapsed-width: 56px;
+  --detail-panel-width:      340px;
+  --header-height:           56px;
+  --bottom-nav-height:       64px;
+  --kanban-col-width:        296px;
 }
 
-/* Dark theme overrides */
+/* ============================================================
+   DARK MODE OVERRIDES
+   Only override semantic tokens — aliases update automatically
+   ============================================================ */
+
 .dark {
-  --color-background: #0a0a0a;
-  --color-foreground: #fafafa;
-  --color-card: #111111;
-  --color-card-foreground: #fafafa;
-  --color-popover: #111111;
-  --color-popover-foreground: #fafafa;
-  --color-primary: #3b82f6;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #1e293b;
-  --color-secondary-foreground: #f8fafc;
-  --color-muted: #1e293b;
-  --color-muted-foreground: #94a3b8;
-  --color-accent: #1e293b;
-  --color-accent-foreground: #f8fafc;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #ffffff;
-  --color-border: #1e293b;
-  --color-input: #1e293b;
-  --color-ring: #3b82f6;
-  --color-sidebar: #111111;
-  --color-sidebar-foreground: #f8fafc;
-  --color-sidebar-border: #1e293b;
+  /* Backgrounds (6-level elevation hierarchy) */
+  --color-bg:               #0D0E17;
+  --color-surface:          #131420;
+  --color-sidebar:          #171828;
+  --color-surface-raised:   #1E2033;
+  --color-surface-overlay:  #252740;
+  --color-surface-hover:    #2C2E4A;
+  --color-surface-selected: #312D58;
+
+  /* Text */
+  --color-text-primary:     #EAEAF5;
+  --color-text-secondary:   #9090B0;
+  --color-text-tertiary:    #5A5A78;
+  --color-text-disabled:    #3A3A58;
+  --color-text-on-primary:  #0D0E17;
+
+  /* Borders */
+  --color-border:           #2A2B42;
+  --color-border-subtle:    #1E1F34;
+  --color-border-strong:    #3C3D5A;
+  --color-border-focus:     #9E8AF5;
+
+  /* Interactive — lighter violet for dark bg */
+  --color-primary:            #9E8AF5;
+  --color-primary-hover:      #B5A5FF;
+  --color-primary-muted:      #1E1A38;
+  --color-primary-foreground: #0D0E17;
+
+  /* Semantic */
+  --color-success:           #3EBF86;
+  --color-success-muted:     #0D2420;
+  --color-warning:           #F5A524;
+  --color-warning-muted:     #2A1F0A;
+  --color-destructive:       #F05151;
+  --color-destructive-muted: #2A0F0F;
+  --color-info:              #52A8FF;
+  --color-info-muted:        #0A1A30;
+
+  /* Priority */
+  --color-p1:       #F05151;
+  --color-p1-muted: #2A0F0F;
+  --color-p2:       #F5A524;
+  --color-p2-muted: #2A1F0A;
+  --color-p3:       #52A8FF;
+  --color-p3-muted: #0A1A30;
+  --color-p4:       #5A5A78;
+  --color-p4-muted: #1A1A28;
+
+  /* Shadows — heavier, with inset highlight for elevation */
+  --shadow-xs: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-sm: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-md: 0 6px 16px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+  --shadow-lg: 0 14px 36px rgba(0,0,0,0.65), inset 0 1px 0 rgba(255,255,255,0.07);
+  --shadow-xl: 0 28px 72px rgba(0,0,0,0.75), inset 0 1px 0 rgba(255,255,255,0.09);
 }
 
-* {
-  border-color: var(--color-border);
-}
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
 
-body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-}
+@layer base {
+  :root {
+    /* Additional CSS vars not used as Tailwind utility tokens */
+    --color-overlay:       rgba(0, 0, 0, 0.45);
+    --color-skeleton-base: #E8E8F0;
+    --color-skeleton-hl:   #F5F5FF;
+    --color-drag-ph:       rgba(109, 86, 212, 0.15);
+    --color-scrollbar:     #D4D4E4;
 
-/* Smooth theme transitions */
-html {
-  transition: background-color 150ms ease, color 150ms ease;
-}
+    /* Radius alias for direct CSS use */
+    --radius-base: 6px;
 
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
+    /* Focus ring shadows */
+    --shadow-focus:       0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-border-focus);
+    --shadow-focus-error: 0 0 0 2px var(--color-bg), 0 0 0 4px var(--color-destructive);
+  }
+
+  .dark {
+    /* Utility vars — dark mode overrides */
+    --color-overlay:       rgba(0, 0, 0, 0.70);
+    --color-skeleton-base: #1E2033;
+    --color-skeleton-hl:   #252740;
+    --color-drag-ph:       rgba(158, 138, 245, 0.15);
+    --color-scrollbar:     #2C2E4A;
+  }
+
   * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    box-sizing: border-box;
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    scroll-behavior: smooth;
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    color: var(--color-text-primary);
+    background-color: var(--color-bg);
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    line-height: var(--leading-heading);
+  }
+
+  /* Keyboard-only focus rings */
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+    border-radius: var(--radius-base);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-scrollbar);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-border-strong); }
+
+  /* Skeleton shimmer */
+  @keyframes shimmer {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--color-skeleton-base) 25%,
+      var(--color-skeleton-hl)   50%,
+      var(--color-skeleton-base) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s ease-in-out infinite;
+    border-radius: var(--radius-base);
+  }
+
+  /* Kanban drop placeholder pulse */
+  @keyframes placeholder-pulse {
+    0%, 100% { opacity: 0.5; }
+    50%       { opacity: 1; }
+  }
+
+  [data-drop-placeholder] {
+    animation: placeholder-pulse 1s ease-in-out infinite;
+    border: 2px dashed var(--color-primary);
+    border-radius: var(--radius-md);
+    background: var(--color-drag-ph);
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+
+    /* Exception: opacity-only transitions are acceptable */
+    [data-fade-ok] {
+      transition-duration: 200ms !important;
+    }
+
+    .skeleton {
+      animation: none;
+      background: var(--color-skeleton-base);
+    }
+
+    [data-drop-placeholder] {
+      animation: none;
+      opacity: 0.8;
+    }
   }
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--color-muted-foreground);
-  border-radius: 3px;
-  opacity: 0.3;
-}
+/* ============================================================
+   COMPONENT UTILITIES
+   ============================================================ */
 
-/* Skip to content link */
-.skip-to-content {
-  position: absolute;
-  top: -40px;
-  left: 0;
-  z-index: 100;
-  padding: 8px 16px;
-  background: var(--color-primary);
-  color: var(--color-primary-foreground);
-  transition: top 150ms;
-}
-.skip-to-content:focus {
-  top: 0;
+@layer components {
+  /* ── Typography ────────────────────────────────────────── */
+  .text-display {
+    font-family: var(--font-display);
+    font-size: var(--text-display);
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
+  }
+  .text-h1 {
+    font-family: var(--font-display);
+    font-size: var(--text-h1);
+    font-weight: 700;
+    line-height: 1.28;
+    letter-spacing: -0.02em;
+  }
+  .text-h2 {
+    font-family: var(--font-display);
+    font-size: var(--text-h2);
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.015em;
+  }
+  .text-h3 {
+    font-family: var(--font-display);
+    font-size: var(--text-h3);
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+  }
+  .text-body-lg {
+    font-size: var(--text-body-lg);
+    line-height: 1.6;
+  }
+  .text-body {
+    font-size: var(--text-body);
+    line-height: 1.55;
+  }
+  .text-body-sm {
+    font-size: var(--text-body-sm);
+    line-height: 1.5;
+    letter-spacing: 0.005em;
+  }
+  .text-label {
+    font-size: var(--text-label);
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: 0.025em;
+  }
+  .text-micro {
+    font-size: var(--text-micro);
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Priority border indicators ──────────────────────── */
+  .priority-border-p1 { border-left: 3px solid var(--color-p1); }
+  .priority-border-p2 { border-left: 3px solid var(--color-p2); }
+  .priority-border-p3 { border-left: 3px solid var(--color-p3); }
+  .priority-border-p4 { border-left: 3px solid var(--color-p4); }
+
+  /* ── Sidebar nav active item ─────────────────────────── */
+  .nav-item-active {
+    background-color: var(--color-surface-selected);
+    color: var(--color-primary);
+    position: relative;
+  }
+  .nav-item-active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 4px;
+    bottom: 4px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background-color: var(--color-primary);
+  }
+
+  /* ── Card base ───────────────────────────────────────── */
+  .card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+  }
+  .card-hover {
+    transition: box-shadow 150ms ease, transform 150ms ease;
+  }
+  .card-hover:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  /* ── Focus ring ──────────────────────────────────────── */
+  .focus-ring:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  /* ── Accessibility: skip to content ─────────────────── */
+  .skip-to-content {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    z-index: 100;
+    padding: 8px 16px;
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+    transition: top 150ms;
+  }
+  .skip-to-content:focus {
+    top: 0;
+  }
 }

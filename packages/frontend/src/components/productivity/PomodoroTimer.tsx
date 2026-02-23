@@ -1,11 +1,43 @@
+import { useRef, useEffect, useState } from 'react';
 import { useTimerStore } from '@/stores/timerStore';
 import { useTaskStore } from '@/stores/taskStore';
-import { Button } from '@/components/ui/button';
-import { formatTimer, cn } from '@/lib/utils';
+import { formatTimer } from '@/lib/utils';
 import { DEFAULT_POMODORO } from '@flowtask/shared';
-import { Play, Pause, SkipForward, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Play, Pause, SkipForward, RotateCcw, ChevronUp, ChevronDown, Timer } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { gsap } from '@/lib/gsap';
+
+// State config with design token colors
+const STATE_CONFIG = {
+  idle: {
+    label: 'Ready to Focus',
+    color: 'var(--color-text-tertiary)',
+    trackColor: 'var(--color-border)',
+    dot: 'var(--color-text-tertiary)',
+  },
+  work: {
+    label: 'Focus Session',
+    color: 'var(--color-p1)',
+    trackColor: 'rgba(229,72,77,0.15)',
+    dot: 'var(--color-p1)',
+  },
+  short_break: {
+    label: 'Short Break',
+    color: 'var(--color-success)',
+    trackColor: 'rgba(30,158,110,0.15)',
+    dot: 'var(--color-success)',
+  },
+  long_break: {
+    label: 'Long Break',
+    color: 'var(--color-info)',
+    trackColor: 'rgba(5,112,222,0.15)',
+    dot: 'var(--color-info)',
+  },
+} as const;
+
+const RING_RADIUS = 52;
+const RING_STROKE = 5;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 export function PomodoroTimer() {
   const {
@@ -15,145 +47,252 @@ export function PomodoroTimer() {
   const { tasks } = useTaskStore();
   const [collapsed, setCollapsed] = useState(true);
 
+  const progressCircleRef = useRef<SVGCircleElement>(null);
+  const prevProgressRef = useRef(0);
+
   const activeTask = pomodoroTaskId ? tasks.find((t) => t.id === pomodoroTaskId) : null;
-  const totalSeconds = pomodoroState === 'work'
-    ? DEFAULT_POMODORO.workMinutes * 60
-    : pomodoroState === 'short_break'
-      ? DEFAULT_POMODORO.shortBreakMinutes * 60
-      : pomodoroState === 'long_break'
-        ? DEFAULT_POMODORO.longBreakMinutes * 60
-        : DEFAULT_POMODORO.workMinutes * 60;
+  const totalSeconds =
+    pomodoroState === 'work' ? DEFAULT_POMODORO.workMinutes * 60 :
+    pomodoroState === 'short_break' ? DEFAULT_POMODORO.shortBreakMinutes * 60 :
+    pomodoroState === 'long_break' ? DEFAULT_POMODORO.longBreakMinutes * 60 :
+    DEFAULT_POMODORO.workMinutes * 60;
 
   const progress = totalSeconds > 0 ? ((totalSeconds - pomodoroTimeRemaining) / totalSeconds) * 100 : 0;
-  const circumference = 2 * Math.PI * 45;
-  const strokeDashoffset = circumference - (progress / 100) * circumference;
+  const config = STATE_CONFIG[pomodoroState];
 
-  const stateLabels = {
-    idle: 'Ready',
-    work: 'Focus',
-    short_break: 'Short Break',
-    long_break: 'Long Break',
-  };
+  // GSAP animate the progress ring
+  useEffect(() => {
+    if (!progressCircleRef.current || collapsed) return;
+    const targetOffset = RING_CIRCUMFERENCE - (progress / 100) * RING_CIRCUMFERENCE;
+    const prevOffset = RING_CIRCUMFERENCE - (prevProgressRef.current / 100) * RING_CIRCUMFERENCE;
 
-  const stateColors = {
-    idle: 'text-muted-foreground',
-    work: 'text-red-500',
-    short_break: 'text-green-500',
-    long_break: 'text-blue-500',
-  };
+    // Only animate if change is significant to avoid jitter
+    if (Math.abs(targetOffset - prevOffset) > 0.1) {
+      gsap.to(progressCircleRef.current, {
+        strokeDashoffset: targetOffset,
+        duration: isPomodoroRunning ? 1.0 : 0.4,
+        ease: 'power1.out',
+        overwrite: true,
+      });
+      prevProgressRef.current = progress;
+    }
+  }, [progress, collapsed, isPomodoroRunning]);
+
+  // Set initial ring state when panel opens
+  useEffect(() => {
+    if (!collapsed && progressCircleRef.current) {
+      const targetOffset = RING_CIRCUMFERENCE - (progress / 100) * RING_CIRCUMFERENCE;
+      gsap.set(progressCircleRef.current, { strokeDashoffset: targetOffset });
+      prevProgressRef.current = progress;
+    }
+  }, [collapsed]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const sessionsDisplay = Array.from({ length: 4 }, (_, i) => i < (pomodoroSessionCount % 4 || (pomodoroSessionCount > 0 && pomodoroSessionCount % 4 === 0 ? 4 : 0)) ? true : false);
 
   return (
     <motion.div
-      className="fixed bottom-4 right-4 z-30 hidden md:block"
-      initial={{ y: 100, opacity: 0 }}
+      className="fixed z-30 hidden md:block"
+      style={{ bottom: 16, right: 16 }}
+      initial={{ y: 24, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
     >
-      <div className="rounded-xl border bg-card shadow-lg overflow-hidden">
-        {/* Collapsed view */}
+      <div
+        className="overflow-hidden"
+        style={{
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-lg)',
+          minWidth: 196,
+        }}
+      >
+        {/* Collapsed header — always visible */}
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex items-center gap-2 px-3 py-2 w-full hover:bg-accent/50 transition-colors"
+          onClick={() => setCollapsed((c) => !c)}
+          className="flex items-center gap-2 w-full transition-colors"
+          style={{
+            padding: '10px 14px',
+            color: 'var(--color-text-primary)',
+          }}
+          aria-label={collapsed ? 'Expand Pomodoro timer' : 'Collapse Pomodoro timer'}
+          aria-expanded={!collapsed}
         >
-          <div className={cn('h-2 w-2 rounded-full', isPomodoroRunning ? 'bg-red-500 animate-pulse' : 'bg-muted-foreground')} />
-          <span className="font-mono text-sm font-medium">{formatTimer(pomodoroTimeRemaining)}</span>
-          <span className={cn('text-xs', stateColors[pomodoroState])}>{stateLabels[pomodoroState]}</span>
-          {collapsed ? <ChevronUp className="h-3.5 w-3.5 ml-auto text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 ml-auto text-muted-foreground" />}
+          {/* Running pulse or timer icon */}
+          {isPomodoroRunning ? (
+            <span
+              className="shrink-0 h-2 w-2 rounded-full animate-pulse"
+              style={{ background: config.dot }}
+            />
+          ) : (
+            <Timer style={{ width: 14, height: 14, color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+          )}
+
+          <span className="font-mono text-sm font-semibold tracking-tight">
+            {formatTimer(pomodoroTimeRemaining)}
+          </span>
+          <span className="text-xs" style={{ color: config.color }}>
+            {STATE_CONFIG[pomodoroState].label}
+          </span>
+          <span className="ml-auto" style={{ color: 'var(--color-text-tertiary)' }}>
+            {collapsed
+              ? <ChevronUp style={{ width: 14, height: 14 }} />
+              : <ChevronDown style={{ width: 14, height: 14 }} />
+            }
+          </span>
         </button>
 
-        {/* Expanded view */}
+        {/* Expanded panel */}
         <AnimatePresence>
           {!collapsed && (
             <motion.div
-              initial={{ height: 0 }}
-              animate={{ height: 'auto' }}
-              exit={{ height: 0 }}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="overflow-hidden"
             >
-              <div className="p-4 border-t space-y-3">
-                {/* Progress ring */}
-                <div className="flex justify-center">
-                  <svg width="120" height="120" className="-rotate-90">
+              <div
+                className="flex flex-col items-center gap-4"
+                style={{
+                  padding: '16px',
+                  borderTop: '1px solid var(--color-border-subtle)',
+                }}
+              >
+                {/* Progress Ring */}
+                <div className="relative">
+                  <svg
+                    width={RING_RADIUS * 2 + RING_STROKE * 2}
+                    height={RING_RADIUS * 2 + RING_STROKE * 2}
+                    style={{ transform: 'rotate(-90deg)' }}
+                  >
+                    {/* Track */}
                     <circle
-                      cx="60" cy="60" r="45"
+                      cx={RING_RADIUS + RING_STROKE}
+                      cy={RING_RADIUS + RING_STROKE}
+                      r={RING_RADIUS}
                       fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      className="text-muted"
+                      stroke={config.trackColor}
+                      strokeWidth={RING_STROKE}
                     />
+                    {/* Progress */}
                     <circle
-                      cx="60" cy="60" r="45"
+                      ref={progressCircleRef}
+                      cx={RING_RADIUS + RING_STROKE}
+                      cy={RING_RADIUS + RING_STROKE}
+                      r={RING_RADIUS}
                       fill="none"
-                      stroke="currentColor"
-                      strokeWidth="4"
+                      stroke={config.color}
+                      strokeWidth={RING_STROKE}
                       strokeLinecap="round"
-                      strokeDasharray={circumference}
-                      strokeDashoffset={strokeDashoffset}
-                      className={stateColors[pomodoroState]}
-                      style={{ transition: 'stroke-dashoffset 1s linear' }}
+                      strokeDasharray={RING_CIRCUMFERENCE}
+                      strokeDashoffset={RING_CIRCUMFERENCE}
                     />
-                    <text
-                      x="60" y="60"
-                      textAnchor="middle"
-                      dominantBaseline="central"
-                      className="fill-foreground text-lg font-mono font-bold rotate-90 origin-center"
-                    >
-                      {formatTimer(pomodoroTimeRemaining)}
-                    </text>
                   </svg>
+                  {/* Center text — compensate for SVG rotation */}
+                  <div
+                    className="absolute inset-0 flex flex-col items-center justify-center"
+                    style={{ transform: 'rotate(0deg)' }}
+                  >
+                    <span className="font-mono text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                      {formatTimer(pomodoroTimeRemaining)}
+                    </span>
+                    <span className="text-xs mt-0.5" style={{ color: 'var(--color-text-tertiary)' }}>
+                      #{pomodoroSessionCount + 1}
+                    </span>
+                  </div>
                 </div>
 
-                {/* Session type & count */}
-                <div className="text-center">
-                  <p className={cn('text-sm font-medium', stateColors[pomodoroState])}>
-                    {stateLabels[pomodoroState]}
+                {/* State label + task */}
+                <div className="text-center w-full">
+                  <p className="text-sm font-semibold" style={{ color: config.color }}>
+                    {config.label}
                   </p>
                   {activeTask && (
-                    <p className="text-xs text-muted-foreground truncate">{activeTask.title}</p>
+                    <p
+                      className="text-xs mt-1 truncate"
+                      style={{ color: 'var(--color-text-tertiary)', maxWidth: 160 }}
+                      title={activeTask.title}
+                    >
+                      {activeTask.title}
+                    </p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">Session {pomodoroSessionCount}</p>
+                </div>
+
+                {/* Session dots (4 dots = 1 cycle) */}
+                <div className="flex gap-1.5">
+                  {sessionsDisplay.map((filled, i) => (
+                    <div
+                      key={i}
+                      className="h-1.5 w-1.5 rounded-full transition-colors duration-300"
+                      style={{
+                        background: filled ? config.color : 'var(--color-border)',
+                      }}
+                    />
+                  ))}
                 </div>
 
                 {/* Controls */}
-                <div className="flex justify-center gap-2">
+                <div className="flex items-center gap-2">
                   {pomodoroState === 'idle' ? (
-                    <Button
-                      size="sm"
+                    <button
                       onClick={() => {
                         const firstTask = tasks[0];
                         if (firstTask) startPomodoro(firstTask.id);
                       }}
                       disabled={tasks.length === 0}
+                      className="flex items-center gap-1.5 rounded-[var(--radius-md)] text-sm font-medium px-4 py-2 transition-colors disabled:opacity-50"
+                      style={{
+                        background: 'var(--color-primary)',
+                        color: 'var(--color-primary-foreground)',
+                      }}
                     >
-                      <Play className="h-4 w-4 mr-1" /> Start
-                    </Button>
+                      <Play style={{ width: 14, height: 14 }} />
+                      Start Focus
+                    </button>
                   ) : (
                     <>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
+                      <button
                         onClick={resetPomodoro}
-                        aria-label="Reset"
+                        className="flex items-center justify-center rounded-[var(--radius-md)] transition-colors"
+                        style={{
+                          width: 34, height: 34,
+                          background: 'var(--color-surface-raised)',
+                          color: 'var(--color-text-secondary)',
+                          border: '1px solid var(--color-border)',
+                        }}
+                        aria-label="Reset timer"
                       >
-                        <RotateCcw className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        className="h-8 w-8"
+                        <RotateCcw style={{ width: 14, height: 14 }} />
+                      </button>
+                      <button
                         onClick={isPomodoroRunning ? pausePomodoro : resumePomodoro}
+                        className="flex items-center justify-center rounded-[var(--radius-md)] transition-colors"
+                        style={{
+                          width: 40, height: 40,
+                          background: config.color,
+                          color: '#fff',
+                        }}
                         aria-label={isPomodoroRunning ? 'Pause' : 'Resume'}
                       >
-                        {isPomodoroRunning ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-8 w-8"
+                        {isPomodoroRunning
+                          ? <Pause style={{ width: 16, height: 16 }} />
+                          : <Play style={{ width: 16, height: 16 }} />
+                        }
+                      </button>
+                      <button
                         onClick={skipPomodoro}
-                        aria-label="Skip"
+                        className="flex items-center justify-center rounded-[var(--radius-md)] transition-colors"
+                        style={{
+                          width: 34, height: 34,
+                          background: 'var(--color-surface-raised)',
+                          color: 'var(--color-text-secondary)',
+                          border: '1px solid var(--color-border)',
+                        }}
+                        aria-label="Skip to next"
                       >
-                        <SkipForward className="h-3.5 w-3.5" />
-                      </Button>
+                        <SkipForward style={{ width: 14, height: 14 }} />
+                      </button>
                     </>
                   )}
                 </div>

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Command } from 'cmdk';
+import { DialogTitle, DialogDescription } from '@radix-ui/react-dialog';
 import { useUIStore } from '@/stores/uiStore';
 import { useTaskStore } from '@/stores/taskStore';
 import { Priority } from '@flowtask/shared';
 import {
-  Plus, Search, Sun, Moon, Kanban, List, CalendarDays, Download,
+  Plus, Search, Sun, Moon, Kanban, List, CalendarDays, Hash, AlertCircle,
 } from 'lucide-react';
 
 export function QuickCapture() {
@@ -22,24 +23,19 @@ export function QuickCapture() {
     let dueDate: string | undefined;
     const tagNames: string[] = [];
 
-    // Parse priority
     const priorityMatch = title.match(/!(\w+)/);
     if (priorityMatch) {
       const p = priorityMatch[1].toLowerCase();
-      if (['urgent', 'high', 'medium', 'low'].includes(p)) {
-        priority = p;
-      }
+      if (['urgent', 'high', 'medium', 'low'].includes(p)) priority = p;
       title = title.replace(priorityMatch[0], '');
     }
 
-    // Parse tags
     const tagMatches = title.matchAll(/#(\w+)/g);
     for (const match of tagMatches) {
       tagNames.push(match[1]);
       title = title.replace(match[0], '');
     }
 
-    // Parse due date
     const dateMatch = title.match(/@(\S+)/);
     if (dateMatch) {
       const d = dateMatch[1].toLowerCase();
@@ -65,7 +61,6 @@ export function QuickCapture() {
     const parsed = parseQuickInput(inputValue);
     if (!parsed.title) return;
 
-    // Resolve tag names to IDs, creating new tags if needed
     const tagIds: string[] = [];
     for (const name of parsed.tagNames) {
       const existing = tags.find((t) => t.name === name.toLowerCase());
@@ -103,38 +98,100 @@ export function QuickCapture() {
       className="fixed inset-0 z-50"
       shouldFilter={false}
     >
-      <div className="fixed inset-0 bg-black/50" onClick={toggleQuickCapture} />
-      <div className="fixed left-1/2 top-[20%] z-50 w-full max-w-lg -translate-x-1/2 rounded-xl border bg-popover shadow-2xl overflow-hidden">
-        <Command.Input
-          value={inputValue}
-          onValueChange={setInputValue}
-          placeholder="Type a task, /search, or >command..."
-          className="w-full border-b bg-transparent px-4 py-3 text-sm outline-none placeholder:text-muted-foreground"
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !isSearch && !isCommand) {
-              e.preventDefault();
-              handleQuickAdd();
+      <DialogTitle className="sr-only">Quick capture</DialogTitle>
+      <DialogDescription className="sr-only">Quickly add tasks, search, or run commands</DialogDescription>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0"
+        style={{ background: 'var(--color-overlay)', backdropFilter: 'blur(4px)' }}
+        onClick={toggleQuickCapture}
+      />
+
+      {/* Panel */}
+      <div
+        className="fixed left-1/2 top-[18%] z-50 -translate-x-1/2 overflow-hidden"
+        style={{
+          width: 'min(640px, 90vw)',
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          borderRadius: 20,
+          boxShadow: 'var(--shadow-xl)',
+        }}
+      >
+        {/* Input */}
+        <div
+          className="flex items-center gap-3 px-4 border-b"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
+          {isSearch ? (
+            <Search className="h-4 w-4 shrink-0" style={{ color: 'var(--color-primary)' }} />
+          ) : isCommand ? (
+            <AlertCircle className="h-4 w-4 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
+          ) : (
+            <Plus className="h-4 w-4 shrink-0" style={{ color: 'var(--color-primary)' }} />
+          )}
+          <Command.Input
+            value={inputValue}
+            onValueChange={setInputValue}
+            placeholder={
+              isSearch
+                ? 'Search tasks…'
+                : isCommand
+                  ? 'Type a command…'
+                  : 'Add a task… (use !priority, #tag, @date)'
             }
-          }}
-        />
-        <Command.List className="max-h-[300px] overflow-y-auto p-2">
-          <Command.Empty className="px-4 py-6 text-center text-sm text-muted-foreground">
+            className="flex-1 py-3.5 text-[16px] outline-none bg-transparent placeholder:text-[var(--color-text-tertiary)]"
+            style={{ color: 'var(--color-text-primary)' }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !isSearch && !isCommand) {
+                e.preventDefault();
+                handleQuickAdd();
+              }
+            }}
+          />
+        </div>
+
+        {/* Results */}
+        <Command.List
+          className="overflow-y-auto"
+          style={{ maxHeight: 400, padding: 8 }}
+        >
+          <Command.Empty
+            className="flex flex-col items-center justify-center py-8 text-center"
+            style={{ color: 'var(--color-text-tertiary)', fontSize: 14 }}
+          >
             {isSearch ? 'No tasks found.' : 'Press Enter to create task'}
           </Command.Empty>
 
           {!isSearch && !isCommand && inputValue && (
             <Command.Item
               onSelect={handleQuickAdd}
-              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] cursor-pointer"
+              style={{
+                color: 'var(--color-text-primary)',
+              }}
             >
-              <Plus className="h-4 w-4 text-primary" />
-              Create &quot;{inputValue}&quot;
+              <span
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                style={{ background: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}
+              >
+                <Plus className="h-4 w-4" />
+              </span>
+              <span>
+                Create &quot;<span className="font-medium">{inputValue}</span>&quot;
+              </span>
             </Command.Item>
           )}
 
           {isSearch && (
-            <Command.Group heading="Tasks">
-              {filteredTasks.slice(0, 10).map((task) => (
+            <Command.Group>
+              <div
+                className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--color-text-tertiary)' }}
+              >
+                Tasks
+              </div>
+              {filteredTasks.slice(0, 8).map((task) => (
                 <Command.Item
                   key={task.id}
                   value={task.title}
@@ -142,9 +199,10 @@ export function QuickCapture() {
                     useUIStore.getState().selectTask(task.id);
                     toggleQuickCapture();
                   }}
-                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] cursor-pointer"
+                  style={{ color: 'var(--color-text-primary)' }}
                 >
-                  <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                  <Search className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
                   {task.title}
                 </Command.Item>
               ))}
@@ -152,43 +210,87 @@ export function QuickCapture() {
           )}
 
           {isCommand && (
-            <Command.Group heading="Commands">
+            <Command.Group>
+              <div
+                className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider"
+                style={{ color: 'var(--color-text-tertiary)' }}
+              >
+                Commands
+              </div>
               <Command.Item
                 onSelect={() => { setTheme('light'); toggleQuickCapture(); }}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] cursor-pointer"
+                style={{ color: 'var(--color-text-primary)' }}
               >
-                <Sun className="h-3.5 w-3.5" /> Light theme
+                <Sun className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
+                Switch to Light theme
               </Command.Item>
               <Command.Item
                 onSelect={() => { setTheme('dark'); toggleQuickCapture(); }}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] cursor-pointer"
+                style={{ color: 'var(--color-text-primary)' }}
               >
-                <Moon className="h-3.5 w-3.5" /> Dark theme
+                <Moon className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
+                Switch to Dark theme
               </Command.Item>
               <Command.Item
                 onSelect={() => { setActiveView('kanban'); toggleQuickCapture(); }}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] cursor-pointer"
+                style={{ color: 'var(--color-text-primary)' }}
               >
-                <Kanban className="h-3.5 w-3.5" /> Go to Kanban
+                <Kanban className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
+                Go to Kanban view
               </Command.Item>
               <Command.Item
                 onSelect={() => { setActiveView('list'); toggleQuickCapture(); }}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] cursor-pointer"
+                style={{ color: 'var(--color-text-primary)' }}
               >
-                <List className="h-3.5 w-3.5" /> Go to List
+                <List className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
+                Go to List view
               </Command.Item>
               <Command.Item
                 onSelect={() => { setActiveView('calendar'); toggleQuickCapture(); }}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm cursor-pointer hover:bg-accent"
+                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] cursor-pointer"
+                style={{ color: 'var(--color-text-primary)' }}
               >
-                <CalendarDays className="h-3.5 w-3.5" /> Go to Calendar
+                <CalendarDays className="h-3.5 w-3.5 shrink-0" style={{ color: 'var(--color-text-tertiary)' }} />
+                Go to Calendar view
               </Command.Item>
             </Command.Group>
           )}
         </Command.List>
-        <div className="border-t px-4 py-2 text-[11px] text-muted-foreground">
-          <span className="font-medium">Tip:</span> Use !priority, #tag, @date syntax.{' '}
-          <kbd className="rounded border px-1 py-0.5 text-[10px]">Enter</kbd> to create.
+
+        {/* Footer hint */}
+        <div
+          className="border-t px-4 py-2.5 flex items-center gap-3"
+          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-raised)' }}
+        >
+          <div className="flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--color-text-tertiary)' }}>
+            <Hash className="h-3 w-3" />
+            <span>#tag</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--color-text-tertiary)' }}>
+            <span className="font-mono">!</span>
+            <span>!priority</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-[12px]" style={{ color: 'var(--color-text-tertiary)' }}>
+            <span>@</span>
+            <span>@today</span>
+          </div>
+          <div className="ml-auto flex items-center gap-1">
+            <kbd
+              className="rounded text-[11px] px-1.5 py-0.5 font-mono font-medium"
+              style={{
+                border: '1px solid var(--color-border)',
+                background: 'var(--color-surface-hover)',
+                color: 'var(--color-text-secondary)',
+              }}
+            >
+              Enter
+            </kbd>
+            <span className="text-[12px]" style={{ color: 'var(--color-text-tertiary)' }}>to create</span>
+          </div>
         </div>
       </div>
     </Command.Dialog>
