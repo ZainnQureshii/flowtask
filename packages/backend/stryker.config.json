@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/stryker-mutator/stryker/master/packages/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "plugins": ["@stryker-mutator/vitest-runner"],
+  "vitest": {
+    "configFile": "vitest.config.ts"
+  },
+  "mutate": [
+    "src/routes/tasks.ts"
+  ],
+  "reporters": ["clear-text", "html"],
+  "htmlReporter": {
+    "fileName": "../../reports/mutation/index.html"
+  },
+  "timeoutMS": 30000,
+  "concurrency": 2
+}
