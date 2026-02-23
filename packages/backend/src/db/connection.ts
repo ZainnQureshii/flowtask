@@ -6,7 +6,13 @@ import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = resolve(__dirname, '../../data/flowtask.db');
+
+// In production, use the mounted Fly.io volume at /data
+// In development, use the local data directory
+const DB_PATH =
+  process.env.NODE_ENV === 'production'
+    ? '/data/flowtask.db'
+    : resolve(__dirname, '../../data/flowtask.db');
 
 const dir = dirname(DB_PATH);
 if (!existsSync(dir)) {
