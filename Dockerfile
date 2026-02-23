@@ -1,8 +1,7 @@
-# Stage 1: Build frontend
-FROM node:22-alpine AS frontend-builder
+# Stage 1: Build frontend + bundle backend
+FROM node:22-alpine AS builder
 
-# Install pnpm
-RUN npm install -g pnpm@10
+RUN npm install -g pnpm@10 esbuild
 
 WORKDIR /app
 
@@ -15,49 +14,49 @@ COPY packages/shared/package.json ./packages/shared/
 COPY packages/frontend/package.json ./packages/frontend/
 COPY packages/backend/package.json ./packages/backend/
 
-# Install all dependencies
+# Install all dependencies (including devDeps for build tooling)
 RUN pnpm install --frozen-lockfile
 
-# Copy source files
+# Copy all source files
 COPY packages/shared/ ./packages/shared/
 COPY packages/frontend/ ./packages/frontend/
+COPY packages/backend/ ./packages/backend/
 
 # Build frontend
 RUN pnpm --filter frontend run build
 
+# Bundle backend with esbuild into a single file — no tsx needed at runtime
+RUN npx esbuild packages/backend/src/index.ts \
+  --bundle \
+  --platform=node \
+  --format=esm \
+  --outfile=dist/server.mjs \
+  --external:better-sqlite3 \
+  --banner:js="import { createRequire } from 'module'; const require = createRequire(import.meta.url);"
 
-# Stage 2: Production image
-FROM node:22-alpine AS production
 
-# Install pnpm, tsx (globally), and build tools for native module rebuild
+# Stage 2: Compile better-sqlite3 native module for alpine
+FROM node:22-alpine AS native-builder
+
 RUN apk add --no-cache python3 make g++
-RUN npm install -g pnpm@10 tsx@4
+
+WORKDIR /deps
+RUN npm init -y && npm install better-sqlite3@11
+
+
+# Stage 3: Minimal production image
+FROM node:22-alpine
 
 WORKDIR /app
 
-# Copy workspace config files
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY tsconfig.base.json ./
+# Copy native module (better-sqlite3 + its runtime deps like bindings)
+COPY --from=native-builder /deps/node_modules ./node_modules
 
-# Copy package.json files
-COPY packages/shared/package.json ./packages/shared/
-COPY packages/frontend/package.json ./packages/frontend/
-COPY packages/backend/package.json ./packages/backend/
+# Copy bundled backend
+COPY --from=builder /app/dist ./dist
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
-
-# Rebuild better-sqlite3 for the production environment
-RUN pnpm rebuild better-sqlite3
-
-# Copy shared source (tsx will handle .ts imports at runtime)
-COPY packages/shared/src ./packages/shared/src
-
-# Copy backend source (tsx runs .ts directly, no build needed)
-COPY packages/backend/src ./packages/backend/src
-
-# Copy frontend build output to where backend will serve it
-COPY --from=frontend-builder /app/packages/frontend/dist ./packages/frontend/dist
+# Copy frontend build output to where backend serves it
+COPY --from=builder /app/packages/frontend/dist ./packages/frontend/dist
 
 # Create data directory for SQLite volume mount point
 RUN mkdir -p /data
@@ -67,4 +66,4 @@ EXPOSE 8080
 ENV NODE_ENV=production
 ENV PORT=8080
 
-CMD ["node", "--import", "tsx", "packages/backend/src/index.ts"]
+CMD ["node", "dist/server.mjs"]
