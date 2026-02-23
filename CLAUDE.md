@@ -51,7 +51,7 @@ node test-views.js                # View/drag-drop tests
 **pnpm monorepo** with three packages under `packages/`:
 
 - **`shared/`** (`@flowtask/shared`) — TypeScript types (`types.ts`), Zod validation schemas (`schemas.ts`), constants/enums (`constants.ts`). No build step — consumed via direct TS imports. This is the single source of truth for types and validation used by both frontend and backend.
-- **`frontend/`** — React 19 SPA built with Vite 6. Zustand for state, Tailwind 4 + shadcn/ui for styling, @dnd-kit for drag-and-drop, Framer Motion + GSAP for animations. Uses `@` path alias mapped to `src/`.
+- **`frontend/`** — React 19 SPA built with Vite 6. Zustand for state, Tailwind 4 + shadcn/ui for styling, @dnd-kit for drag-and-drop, motion/react v12 + GSAP for animations. Uses `@` path alias mapped to `src/`.
 - **`backend/`** — Hono REST API on port 3001. SQLite via better-sqlite3 + Drizzle ORM. DB file at `packages/backend/data/flowtask.db`. Migrations run automatically on startup.
 
 **Data flow:** Frontend calls `/api/*` → Vite dev proxy forwards to `localhost:3001` → Hono routes validate with Zod → query SQLite via Drizzle → respond with `{ data: T }`.
@@ -113,8 +113,8 @@ Dark mode overrides only semantic tokens — aliases cascade automatically. Appl
 **Breakpoints:** mobile `<768px`, tablet `768px+`, desktop `1024px+`, XL `1536px+`. Layout vars: `--sidebar-width: 240px`, `--detail-panel-width: 340px`, `--header-height: 56px`, `--bottom-nav-height: 64px`.
 
 **Animation framework** — two libraries, distinct responsibilities. Never mix both on the same element:
-- **Framer Motion** (`lib/motion.ts`): `AnimatePresence`, layout animations, gesture-driven. Use presets: `fadeIn`, `slideInRight`, `slideUpModal`, `slideUpSheet`, `taskEnter`, `sidebarCollapse`, `noMotion` (reduced-motion fallback).
-- **GSAP** (`lib/gsap.ts`): multi-step timelines, `ScrollTrigger`, `Flip`. Registered once at module level with global `power2.out` / `0.2s` defaults. Automatically time-scales to 1000x when `prefers-reduced-motion` is set.
+- **motion/react v12** (`lib/motion.ts`): `AnimatePresence`, layout animations, gesture-driven. Import via `import { motion, AnimatePresence } from 'motion/react'`. Use presets: `fadeIn`, `slideInRight`, `slideUpModal`, `slideUpSheet`, `taskEnter`, `sidebarCollapse`, `noMotion` (reduced-motion fallback).
+- **GSAP** (`lib/gsap.ts`): multi-step timelines, `ScrollTrigger`. Registered once at module level with global `power2.out` / `0.2s` defaults. Automatically time-scales to 1000x when `prefers-reduced-motion` is set.
 
 **Priority colors** (`lib/priority.ts`): use `getPriorityColor(priority)` or `PRIORITY_COLORS[priority]` — returns `color`, `muted`, `label`, and Tailwind arbitrary-value classes (`twBorder`, `twText`, `twBg`). Never hardcode priority colors.
 
@@ -133,7 +133,9 @@ Dark mode overrides only semantic tokens — aliases cascade automatically. Appl
 
 **API client** (`src/lib/api.ts`) — Generic `request<T>()` wrapper that extracts `.data` from all responses. All methods are fully typed with shared types.
 
-**Views** (KanbanView, CalendarView) are lazy-loaded via `React.lazy()` for code splitting.
+**Lazy routes**: PlannerPage, SettingsPage, KanbanView, and CalendarView are lazy-loaded via `React.lazy()` in `App.tsx` for code splitting. TasksPage is eager (default route).
+
+**Bundle config** (`vite.config.ts`): vite-plugin-compression generates gzip + brotli pre-compressed assets. Manual chunk splitting: `react-vendor`, `motion-vendor`, `gsap-vendor`, `ui-vendor`, `dnd-vendor`, `router`. Bundle metrics: main chunk 225KB (was 866KB, -74%), gzip 59KB (was 274KB, -78%).
 
 ## Database
 
